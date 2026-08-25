@@ -4,6 +4,14 @@ export const name = "web-search-searxng";
 export const inject = ["web"];
 
 const defaultEndpoint = "http://127.0.0.1:8080";
+const trackingParameters = new Set([
+  "dclid", "fbclid", "gclid", "mc_cid", "mc_eid", "msclkid", "_ga", "_gl",
+]);
+const frenchQuery = /[àâæçéèêëîïôœùûüÿ]|\b(?:actualités|avec|comment|dans|des|france|français|les|pour|sécurité|sur|une)\b/iu;
+const packageQuery = /\bnpm\b/iu;
+const npmSearchNoise = /\b(?:docs?|documentation|npm|package)\b/giu;
+const scienceQuery = /\b(?:arxiv|pubmed|research papers?|scientific papers?|semantic scholar|scholarly)\b/iu;
+const webPlatformQuery = /\b(?:accessibility|css|javascript|typescript|web api)\b/iu;
 
 export class SearxngSearchProvider {
   id = "searxng";
@@ -20,14 +28,17 @@ export class SearxngSearchProvider {
     if (signal?.aborted) throw aborted(signal);
 
     const url = new URL("search", `${this.endpoint.replace(/\/$/u, "")}/`);
-    url.searchParams.set("q", request.query);
+    url.searchParams.set("q", packageQuery.test(request.query) ? withoutNpmSelector(request.query) : request.query);
     url.searchParams.set("format", "json");
-    url.searchParams.set("categories", "general");
+    url.searchParams.set("categories", categoriesFor(request.query));
+    url.searchParams.set("language", frenchQuery.test(request.query) ? "fr-FR" : "en-US");
 
     let response;
     try {
+      const headers = { accept: "application/json" };
+      if (isLoopback(url.hostname)) headers["x-real-ip"] = "127.0.0.1";
       response = await fetch(url, {
-        headers: { accept: "application/json" },
+        headers,
         redirect: "error",
         signal,
       });
@@ -58,15 +69,24 @@ export class SearxngSearchProvider {
 
     const seen = new Set();
     const sources = [];
-    for (const result of body.results) {
-      if (!result || !isHttpUrl(result.url) || seen.has(result.url)) continue;
-      seen.add(result.url);
+    for (const result of [...(Array.isArray(body.answers) ? body.answers : []), ...body.results]) {
+      if (!result || !isHttpUrl(result.url)) continue;
+      const key = dedupeKey(result.url);
+      if (seen.has(key)) continue;
+      seen.add(key);
       sources.push({
         url: result.url,
         ...(nonEmpty(result.title) && { title: result.title }),
-        ...(nonEmpty(result.content) && { snippet: result.content }),
+        ...(nonEmpty(result.answer ?? result.content) && { snippet: result.answer ?? result.content }),
         ...(nonEmpty(result.publishedDate) && { publishedAt: result.publishedDate }),
       });
+    }
+
+    if (sources.length === 0 && Array.isArray(body.unresponsive_engines) && body.unresponsive_engines.length > 0) {
+      throw new WebError(
+        `SearXNG returned no results and reported ${body.unresponsive_engines.length} unavailable engine(s)`,
+        "WEB_PROVIDER_ERROR",
+      );
     }
 
     return { sources, truncated: false };
@@ -84,6 +104,30 @@ function isHttpUrl(value) {
 
 function nonEmpty(value) {
   return typeof value === "string" && value.length > 0;
+}
+
+function dedupeKey(value) {
+  const url = new URL(value);
+  for (const key of new Set(url.searchParams.keys())) {
+    const normalized = key.toLowerCase();
+    if (normalized.startsWith("utm_") || trackingParameters.has(normalized)) url.searchParams.delete(key);
+  }
+  return url.toString();
+}
+
+function isLoopback(hostname) {
+  return hostname === "127.0.0.1" || hostname === "[::1]" || hostname === "localhost";
+}
+
+function categoriesFor(query) {
+  if (scienceQuery.test(query)) return "science";
+  if (packageQuery.test(query)) return "packages";
+  if (webPlatformQuery.test(query)) return "general,it";
+  return "general";
+}
+
+function withoutNpmSelector(query) {
+  return query.replace(npmSearchNoise, " ").replace(/\s+/gu, " ").trim() || query;
 }
 
 function aborted(signal, fallback) {
