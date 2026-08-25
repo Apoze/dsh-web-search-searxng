@@ -7,11 +7,6 @@ const defaultEndpoint = "http://127.0.0.1:8080";
 const trackingParameters = new Set([
   "dclid", "fbclid", "gclid", "mc_cid", "mc_eid", "msclkid", "_ga", "_gl",
 ]);
-const frenchQuery = /[àâæçéèêëîïôœùûüÿ]|\b(?:actualités|avec|comment|dans|des|france|français|les|pour|sécurité|sur|une)\b/iu;
-const packageQuery = /\bnpm\b/iu;
-const npmSearchNoise = /\b(?:docs?|documentation|npm|package)\b/giu;
-const scienceQuery = /\b(?:arxiv|pubmed|research papers?|scientific papers?|semantic scholar|scholarly)\b/iu;
-const webPlatformQuery = /\b(?:accessibility|css|javascript|typescript|web api)\b/iu;
 
 export class SearxngSearchProvider {
   id = "searxng";
@@ -28,10 +23,8 @@ export class SearxngSearchProvider {
     if (signal?.aborted) throw aborted(signal);
 
     const url = new URL("search", `${this.endpoint.replace(/\/$/u, "")}/`);
-    url.searchParams.set("q", packageQuery.test(request.query) ? withoutNpmSelector(request.query) : request.query);
+    url.searchParams.set("q", request.query);
     url.searchParams.set("format", "json");
-    url.searchParams.set("categories", categoriesFor(request.query));
-    url.searchParams.set("language", frenchQuery.test(request.query) ? "fr-FR" : "en-US");
 
     let response;
     try {
@@ -117,17 +110,6 @@ function dedupeKey(value) {
 
 function isLoopback(hostname) {
   return hostname === "127.0.0.1" || hostname === "[::1]" || hostname === "localhost";
-}
-
-function categoriesFor(query) {
-  if (scienceQuery.test(query)) return "science";
-  if (packageQuery.test(query)) return "packages";
-  if (webPlatformQuery.test(query)) return "general,it";
-  return "general";
-}
-
-function withoutNpmSelector(query) {
-  return query.replace(npmSearchNoise, " ").replace(/\s+/gu, " ").trim() || query;
 }
 
 function aborted(signal, fallback) {

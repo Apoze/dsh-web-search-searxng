@@ -8,8 +8,9 @@ test("normalizes and deduplicates tracking URLs without changing returned URLs",
 
   globalThis.fetch = async (url, options) => {
     assert.equal(url.searchParams.get("format"), "json");
-    assert.equal(url.searchParams.get("language"), "en-US");
-    assert.equal(url.searchParams.get("categories"), "general");
+    assert.equal(url.searchParams.get("q"), "test");
+    assert.equal(url.searchParams.has("language"), false);
+    assert.equal(url.searchParams.has("categories"), false);
     assert.equal(options.headers["x-real-ip"], "127.0.0.1");
     return Response.json({ results: [
       { url: "https://example.com/a?utm_source=test&mode=full#part", title: "A", content: "Résumé" },
@@ -31,25 +32,25 @@ test("normalizes and deduplicates tracking URLs without changing returned URLs",
   });
 });
 
-test("routes explicit web-platform and scientific searches without changing their query", async (t) => {
+test("passes every query and native SearXNG syntax through unchanged", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
-  const expected = [
-    ["HTML accessibility", "HTML accessibility", "general,it", "en-US"],
-    ["GitHub project", "GitHub project", "general", "en-US"],
-    ["npm @mozilla/readability", "@mozilla/readability", "packages", "en-US"],
-    ["PubMed clinical safety", "PubMed clinical safety", "science", "en-US"],
-    ["documentation sécurité des API", "documentation sécurité des API", "general", "fr-FR"],
+  const queries = [
+    "HTML accessibility",
+    "npm @mozilla/readability",
+    "PubMed clinical safety",
+    "documentation sécurité des API",
+    ":fr !science site:example.org résultat exact",
   ];
   globalThis.fetch = async (url) => {
-    const [, sentQuery, categories, language] = expected.shift();
-    assert.equal(url.searchParams.get("q"), sentQuery);
-    assert.equal(url.searchParams.get("categories"), categories);
-    assert.equal(url.searchParams.get("language"), language);
+    assert.equal(url.searchParams.get("q"), queries.shift());
+    assert.equal(url.searchParams.has("categories"), false);
+    assert.equal(url.searchParams.has("language"), false);
     return Response.json({ results: [] });
   };
   const provider = new SearxngSearchProvider();
-  for (const [query] of [...expected]) await provider.search({ query });
+  for (const query of [...queries]) await provider.search({ query });
+  assert.equal(queries.length, 0);
 });
 
 test("distinguishes legitimate empty results from an engine outage", async (t) => {
