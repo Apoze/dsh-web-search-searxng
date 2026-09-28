@@ -1,13 +1,19 @@
 {
   "name": "dsh-web-search-searxng",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Local SearXNG provider for the DeepSeek Harness web_search tool",
   "license": "MIT",
   "repository": "github:Apoze/dsh-web-search-searxng",
   "homepage": "https://github.com/Apoze/dsh-web-search-searxng#readme",
   "bugs": "https://github.com/Apoze/dsh-web-search-searxng/issues",
-  "keywords": ["deepseek-harness", "dsh", "searxng", "web-search", "local-first"],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "searxng",
+    "web-search",
+    "local-first"
+  ],
   "type": "module",
   "main": "index.js",
   "exports": "./index.js",
@@ -18,9 +24,9 @@
     "test": "node --test"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-web": "^0.1.1-rc.2 || >=0.1.2-alpha.1 <0.2.0"
+    "@deepseek-ai/dsh-web": "0.2.0-rc.1"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-web": "0.1.2-alpha.5"
+    "@deepseek-ai/dsh-web": "0.2.0-rc.1"
   }
 }
