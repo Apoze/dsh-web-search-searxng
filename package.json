@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-search-searxng",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Local SearXNG provider for the DeepSeek Harness web_search tool",
   "license": "MIT",
@@ -22,16 +22,17 @@
     "./cordis.patch.yml": "./cordis.patch.yml"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "dsh": "0.2.1-alpha.4"
   },
   "scripts": {
     "test": "node --test"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-web": "0.2.0-rc.1"
+    "@deepseek-ai/dsh-web": "0.2.1-alpha.4"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-web": "0.2.0-rc.1"
+    "@deepseek-ai/dsh-web": "0.2.1-alpha.4"
   },
   "files": [
     "index.js",
